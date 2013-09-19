@@ -70,3 +70,65 @@ C_over_P_LF = 1300;     % unit: kg C kg P^-1, C/P ratio of leaf litter
 % floor, divided by C/P ratio of leaf litter gives the rate of litter (P)
 % recycled back to the forest floor
 dPvdt = UP - LF / C_over_P_LF;
+
+% P in plant litter
+% MD, mortality rate of microbial biomass, 
+% DECL, decomposition rate of leaf litter,
+% both are calculated in C cycle
+% (C/P)_M is the carbon to phosphorus ratio of the microbial biomass
+% (C/P)_L is the carbon to phosphorus ratio of the decomposing leaf litter
+dPLdt = LF / C_over_P_LF + MD / C_over_P_M - DECL / C_over_P_L;
+
+kimm = 0.015;   % unit: ha Mg C^-1 day^-1, rate at which microbes immobilize PI
+% imobilization
+IMM = (1 - phi) * (rr* (DECL / C_over_P_L + DECH / C_over_P_H) + kimm * PI * CM);
+% mineralization
+MIN = phi * rr * (DECL / C_over_P_L + DECH / C_over_P_H);
+
+% P in microbial biomass
+% rr, fraction of decomposing C lost to respiration
+% rh, fraction of decomposing litter that 
+% undergoes humification, isohumic coefficient
+% C_over_P_HC, the recalcitrant organic matter that microbes are unable to
+% decompose (i.e., the fraction going into the humus pool) will also have
+% a relatively constant C/P ratio
+dPMdt = ((1 - rr) / C_over_P_L - rh / C_over_P_HC) * DECL + (1 - rr) * ...
+    DECH / C_over_P_H - MD / C_over_P_M + IMM;
+
+
+% P in humus
+% (C/P)HC must meet the condition: (1-rr)*(C/P)HC/(C/P)LF >= rh
+dPHdt = rh * DECL / C_over_P_HC - DECH / C_over_P_H - ENZ_O;
+
+ATM = 0.000016;     % unit: kg PI ha^-1 day^-1, PI deposited atmospherically
+WE = kw * POCC;     % input due to weathering from mineral forms
+kf = 0.0005;        % unit: day^-1, rate at which PI is fixed to POCC
+FIX = kf * PI;      % available soil P, PI can be fixed to more occluded form
+ERI = ke * PI;      % losses of PI due to erosion, and soil particles that 
+                    % are transported during runoff
+kl = 0.035;         % unit: day^-1, leaching loss constant
+
+% b is the pore size distribution index
+%                 b       c     beta
+% Sand          4.05    11.1    12.1
+% Loamy sand    4.38    11.7    12.7
+% Sandy Load    4.90    12.8    13.8
+% Loam          5.39    13.8    14.8
+% Clay          11.4    25.8    26.8
+beta = 2 * b + 4;
+c = 2 * b + 3;
+% vertical percolation with unit gradient
+% Ks is the saturated hydraulic conductivity
+Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
+% or Ls = K(s) = Ks * s^c
+
+% a function of deep leaching losses
+LE = Ls * kl * PI / (n * Zr * s);
+% inorganic P
+dPIdt = MIN + ATM + WE - kimm * PI * CM - FIX - UP - ERI - LE;
+
+ER_O = ke * POCC;
+% changes in the occluded P pool
+dPOCCdt = FIX - WE - ENZ_I - ER_O;
+
+
