@@ -28,7 +28,7 @@ DECL = phi * fd * kd * CM * CL;
 
 rh = 0.18;          % dimensionless, fraction of decomposing litter that 
                     % undergoes humification, isohumic coefficient
-kh = 0.000003;      % ha Mg C^-1 day^-1, humus decomposition rate
+kh = 0.000003;      % unit: ha Mg C^-1 day^-1, humus decomposition rate
 % decomposition rate of the humus pool
 DECH = phi * fd * kh * CM * CH;
 % carbon in humus
