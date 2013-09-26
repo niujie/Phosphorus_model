@@ -1,4 +1,8 @@
-function dCPdt = myode(~, CP)
+function dCPdt = myode(t, CP)
+
+global DF litter
+Ist = interp1(DF.t, DF.v, t);
+LF  = interp1(litter.t, litter.v, t);
 
 %% 
 CL   = CP(1);
@@ -13,7 +17,8 @@ POCC = CP(9);
 s    = CP(10);
 
 C_over_P_L = CL / PL;
-C_over_P_H = CH / PH;
+%C_over_P_H = CH / PH;
+C_over_P_H = 50/1000;
 C_over_P_M = CM / PM;
 
 
@@ -64,11 +69,18 @@ b = 5.0;
 beta = 2 * b + 4;
 % vertical percolation with unit gradient
 % Ks is the saturated hydraulic conductivity
-Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
-% c = 2 * b + 3;
-% Ls = K(s) = Ks * s^c
+if s > sfc
+    Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
+else
+    c = 2 * b + 3;
+    Ls = Ks * s^c;
+end
 % soil moisture dynamics, Ist is the rate of infiltration from rainfall
-dsdt = (Ist - Es - Ts - Ls) / (n * Zr);
+try
+    dsdt = (Ist - Es - Ts - Ls) / (n * Zr);
+catch
+    4;
+end
 
 %% C part
 
@@ -79,8 +91,8 @@ else
     fd = sfc / s;
 end
 
-C_over_P_THRp = 65;     % unit: kg C kg P^-1, microbial C/P ratio where nutrients are limiting
-C_over_P_THRm = 56;     % unit: kg C kg P^-1, microbial C/P ratio where carbon is limiting
+C_over_P_THRp = 65/1000;     % unit: kg C kg P^-1 --> Mg C kg P^-1, microbial C/P ratio where nutrients are limiting
+C_over_P_THRm = 56/1000;     % unit: kg C kg P^-1 --> Mg C kg P^-1, microbial C/P ratio where carbon is limiting
 if C_over_P_M < C_over_P_THRm
     phi = 1;        % parameter reduces decomposition rates when nutrient poor
 else
@@ -148,59 +160,60 @@ if PI < Pstar           % PI, available soil, inorganic P
     % with a root depth, Zr, porosity, n, and relative soil moisture
     % content, s
     UPp = kp * Ts * PI / (n*Zr*s);  % passive uptake
-    
-    if DEMstar - UPp <= 0       % i.e. PI >> P*
-        UPa = 0;                % active uptake through enzymatic release
-    else
-        k_enzi = 0.014;         % unit: day^-1, maximum rate of enzymatic 
-                                % dissolution from Pocc, occluded P pool
-        ENZ_I_max = k_enzi * Pocc;
-        k_enzo = 0.04;          % unit: day^-1, maximum rate of enzymatic 
-                                % dissolution from PH, humus P pool
-        ENZ_O_max = k_enzo * PH;
-        
-        if DEMstar - UPp <= ENZ_O_max + ENZ_I_max
-            UPa = DEMstar - UPp;
-        else
-            if DEMstar - UPp <= 0
-                ENZ_O = 0;      % enzymatic breakdown of organic P by releasing
-                                % extracellular enzymes
-            else
-                if DEmstar - UPp <= ENZ_O_max
-                    ENZ_O = DEMstar - UPp;
-                else
-                    ENZ_O = ENZ_O_max;
-                end
-            end
-            if DEMstar - UPp <= ENZ_O_max
-                ENZ_I = 0;      % the dissolution of P-containing minerals 
-                                % through a combination of soil
-                                % acidification and the release of metal
-                                % complexing agents (predominantly organic 
-                                % acid anions)
-            else
-                if DEMstar - UPp <= ENZ_O_max + ENZ_I_max
-                    ENZ_I = DEMstar - UPp - ENZ_O_max;
-                else
-                    ENZ_I = ENZ_I_max;
-                end
-            end
-            UPa = ENZ_O + ENZ_I;
-        end
-    end
-    
-    UP = UPp + UPa;     % rate of P uptake
 else
     UPp = DEMstar;
-    UP = UPp;           % rate of P uptake
 end
 
-C_over_P_LF = 1300;     % unit: kg C kg P^-1, C/P ratio of leaf litter
+k_enzi = 0.014;         % unit: day^-1, maximum rate of enzymatic 
+                        % dissolution from Pocc, occluded P pool
+ENZ_I_max = k_enzi * POCC;
+k_enzo = 0.04;          % unit: day^-1, maximum rate of enzymatic 
+                        % dissolution from PH, humus P pool
+ENZ_O_max = k_enzo * PH;
+if DEMstar - UPp <= 0
+    ENZ_O = 0;      % enzymatic breakdown of organic P by releasing
+                    % extracellular enzymes
+else
+    if DEMstar - UPp <= ENZ_O_max
+        ENZ_O = DEMstar - UPp;
+    else
+        ENZ_O = ENZ_O_max;
+    end
+end
+if DEMstar - UPp <= ENZ_O_max
+    ENZ_I = 0;      % the dissolution of P-containing minerals 
+                    % through a combination of soil
+                    % acidification and the release of metal
+                    % complexing agents (predominantly organic 
+                    % acid anions)
+else
+    if DEMstar - UPp <= ENZ_O_max + ENZ_I_max
+        ENZ_I = DEMstar - UPp - ENZ_O_max;
+    else
+        ENZ_I = ENZ_I_max;
+    end
+end
+if DEMstar - UPp <= 0       % i.e. PI >> P*
+    UPa = 0;                % active uptake through enzymatic release
+else       
+    if DEMstar - UPp <= ENZ_O_max + ENZ_I_max
+        UPa = DEMstar - UPp;
+    else
+        UPa = ENZ_O + ENZ_I;
+    end
+end
+if PI < Pstar   
+    UP = UPp + UPa;     % rate of P uptake
+else
+    UP = DEMstar;           % rate of P uptake
+end
+
+C_over_P_LF = 1300/1000;     % unit: kg C kg P^-1 --> Mg C kg P^-1, C/P ratio of leaf litter
 % organic phosphorus stored in the biomass pool (Pv)
 % LF is the rate at which litter (Carbon) is recycled back to the forest 
 % floor, divided by C/P ratio of leaf litter gives the rate of litter (P)
 % recycled back to the forest floor
-dPVdt = UP - LF / C_over_P_LF;
+dPVdt = UP - LF / C_over_P_LF;      % ********* unit!!! **********
 
 % P in plant litter
 % MD, mortality rate of microbial biomass, 
@@ -235,10 +248,12 @@ dPMdt = ((1 - rr) / C_over_P_L - rh / C_over_P_HC) * DECL + (1 - rr) * ...
 dPHdt = rh * DECL / C_over_P_HC - DECH / C_over_P_H - ENZ_O;
 
 ATM = 0.000016;     % unit: kg PI ha^-1 day^-1, PI deposited atmospherically
-WE = kw * POCC;     % input due to weathering from mineral forms
+% kw = 1e-8;        % NOT SURE
+% WE = kw * POCC;     % input due to weathering from mineral forms
+WE = 0.0;
 kf = 0.0005;        % unit: day^-1, rate at which PI is fixed to POCC
 FIX = kf * PI;      % available soil P, PI can be fixed to more occluded form
-ke = 0.001;         % NOT SURE
+ke = 1e-8;        % NOT SURE
 ERI = ke * PI;      % losses of PI due to erosion, and soil particles that 
                     % are transported during runoff
 
@@ -246,7 +261,7 @@ kl = 0.035;         % unit: day^-1, leaching loss constant
 % a function of deep leaching losses
 LE = Ls * kl * PI / (n * Zr * s);
 % inorganic P
-dPIdt = MIN + ATM + WE - kimm * PI * CM - FIX - UP - ERI - LE;
+dPIdt = MIN + ATM + WE + ENZ_I + ENZ_O - kimm * PI * CM - FIX - UP - ERI - LE;
 
 ER_O = ke * POCC;
 % changes in the occluded P pool
