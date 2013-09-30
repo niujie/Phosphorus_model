@@ -1,37 +1,37 @@
-function dCPdt = myode(t, CP)
+function [dCPdt, LE] = myode(t, CP)
 
 global DF litter
 Ist = interp1(DF.t, DF.v, t);
 LF  = interp1(litter.t, litter.v, t);
-date = datestr(t+datenum('01-Jan-1998'));
-month = date(4:6);
-switch month
-    case 'Jan'
-        LF = 0.002;
-    case 'Feb'
-        LF = 0.002;
-    case 'Mar'
-        LF = 0.00227;
-    case 'Apr'
-        LF = 0.00227;
-    case 'May'
-        LF = 0.00255;
-    case 'Jun'
-        LF = 0.00271;
-    case 'Jul'
-        LF = 0.00282;
-    case 'Aug'
-        LF = 0.006376;
-    case 'Sep'
-        LF = 0.00473;
-    case 'Oct'
-        LF = 0.00282;
-    case 'Nov'
-        LF = 0.002;
-    case 'Dec'
-        LF = 0.002;
-    otherwise
-end
+% date = datestr(t + datenum('01-Jan-1998'));
+% month = date(4:6);
+% switch month
+%     case 'Jan'
+%         LF = 0.002;
+%     case 'Feb'
+%         LF = 0.002;
+%     case 'Mar'
+%         LF = 0.00227;
+%     case 'Apr'
+%         LF = 0.00227;
+%     case 'May'
+%         LF = 0.00255;
+%     case 'Jun'
+%         LF = 0.00271;
+%     case 'Jul'
+%         LF = 0.00282;
+%     case 'Aug'
+%         LF = 0.006376;
+%     case 'Sep'
+%         LF = 0.00473;
+%     case 'Oct'
+%         LF = 0.00282;
+%     case 'Nov'
+%         LF = 0.002;
+%     case 'Dec'
+%         LF = 0.002;
+%     otherwise
+% end
 
 %% 
 CL   = CP(1);
@@ -46,8 +46,8 @@ POCC = CP(9);
 s    = CP(10);
 
 C_over_P_L = CL / PL;
-%C_over_P_H = CH / PH;
-C_over_P_H = 50/1000;
+C_over_P_H = CH / PH;
+%C_over_P_H = 50/1000;
 C_over_P_M = CM / PM;
 
 
@@ -94,16 +94,18 @@ Ks  = 452;            % unit: cm day^-1, saturated hydraulic conductivity
 % Sandy Load    4.90    12.8    13.8
 % Loam          5.39    13.8    14.8
 % Clay          11.4    25.8    26.8
-b = 5.0;
+b = 4;        % used by the paper author
 beta = 2 * b + 4;
 % vertical percolation with unit gradient
 % Ks is the saturated hydraulic conductivity
-if s > sfc
-    Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
-else
-    c = 2 * b + 3;
-    Ls = Ks * s^c;
-end
+% if s > sfc
+%     Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
+% else
+%     c = 2 * b + 3;
+%     Ls = Ks * s^c;
+% end
+c = 2 * b + 3;
+Ls = Ks*s^c / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);
 % soil moisture dynamics, Ist is the rate of infiltration from rainfall
 try
     dsdt = (Ist - Es - Ts - Ls) / (n * Zr);
@@ -132,7 +134,8 @@ else
     end
 end
 
-kd = 0.0004;        % unit: ha Mg C^-1 day^-1, litter decomposition rate
+%kd = 0.0004;        % unit: ha Mg C^-1 day^-1, litter decomposition rate
+kd = 0.1/365;
 % decomposition rate of leaf litter
 % CM is carbon in microbial biomass
 % CL is carbon in litter
@@ -141,7 +144,7 @@ DECL = phi * fd * kd * CM * CL;
 
 rh = 0.18;          % dimensionless, fraction of decomposing litter that 
                     % undergoes humification, isohumic coefficient
-kh = 0.000003;      % unit: ha Mg C^-1 day^-1, humus decomposition rate
+kh = 0.001/365;      % unit: ha Mg C^-1 day^-1, humus decomposition rate
 % decomposition rate of the humus pool
 DECH = phi * fd * kh * CM * CH;
 % carbon in humus
@@ -155,7 +158,9 @@ else
     fm = (s - sfc) / (1 - sfc);
 end
 kmax = 0.001;       % unit: day^-1, maximum microbial death rate
+%kmax = 0.5/365;
 kopt = 0.000008;    % unit: day^-1, optimal microbial death rate
+%kopt = 0.003/365;
 % mortality rate of microbial biomass
 MD = max(kmax*fm, kopt) * CM;
 rr = 0.6;           % dimensionless, fraction of decomposing C lost to respiration
@@ -175,9 +180,9 @@ dCLdt = LF + MD - DECL;
 kp    = 10;             % Dimensionless, role of AM in movement of P ions
                         % role of mycorrhizal hyphae in the movement of P
                         % ions to the plant
-Pstar = 0.054;          % unit: kg PI ha^-1, amount of PI required before 
+%Pstar = 0.054;          % unit: kg PI ha^-1, amount of PI required before 
                         % it becomes limiting
-
+Pstar = 0.018;
 
 DEMstar = kp * Ts * Pstar / (n*Zr*s);   % P demand when the amount of 
                                         % PI in the soil can satisfy
@@ -193,12 +198,16 @@ else
     UPp = DEMstar;
 end
 
-k_enzi = 0.014;         % unit: day^-1, maximum rate of enzymatic 
+%k_enzi = 0.014;         % unit: day^-1, maximum rate of enzymatic 
                         % dissolution from Pocc, occluded P pool
-ENZ_I_max = k_enzi * POCC;
-k_enzo = 0.04;          % unit: day^-1, maximum rate of enzymatic 
+k_enzi = 0.00003/365;
+
+ENZ_I_max = k_enzi * POCC * CM;
+%k_enzo = 0.04;          % unit: day^-1, maximum rate of enzymatic 
                         % dissolution from PH, humus P pool
-ENZ_O_max = k_enzo * PH;
+k_enzo = 0.0008/365;
+
+ENZ_O_max = k_enzo * PH * CM;
 if DEMstar - UPp <= 0
     ENZ_O = 0;      % enzymatic breakdown of organic P by releasing
                     % extracellular enzymes
@@ -266,8 +275,8 @@ MIN = phi * rr * (DECL / C_over_P_L + DECH / C_over_P_H);
 % decompose (i.e., the fraction going into the humus pool) will also have
 % a relatively constant C/P ratio
 % (1-rr)*(C/P)_HC/(C/P)_LF >= rh
-% just put a coefficient of 1.5 here temporarily
-C_over_P_HC = 1.5 * rh * C_over_P_LF / (1 - rr);
+% just put a coefficient of 1.0 here temporarily
+C_over_P_HC = 1.0 * rh * C_over_P_LF / (1 - rr);
 dPMdt = ((1 - rr) / C_over_P_L - rh / C_over_P_HC) * DECL + (1 - rr) * ...
     DECH / C_over_P_H - MD / C_over_P_M + IMM;
 
@@ -276,26 +285,30 @@ dPMdt = ((1 - rr) / C_over_P_L - rh / C_over_P_HC) * DECL + (1 - rr) * ...
 % (C/P)HC must meet the condition: (1-rr)*(C/P)HC/(C/P)LF >= rh
 dPHdt = rh * DECL / C_over_P_HC - DECH / C_over_P_H - ENZ_O;
 
-ATM = 0.000016;     % unit: kg PI ha^-1 day^-1, PI deposited atmospherically
+%ATM = 0.000016;     % unit: kg PI ha^-1 day^-1, PI deposited atmospherically
+ATM = 0.006/365;
 % kw = 1e-8;        % NOT SURE
 % WE = kw * POCC;     % input due to weathering from mineral forms
-WE = 0.0;
-kf = 0.0005;        % unit: day^-1, rate at which PI is fixed to POCC
+WE = 0.1/365;
+%kf = 0.0005;        % unit: day^-1, rate at which PI is fixed to POCC
+kf = 0.1/365;
 FIX = kf * PI;      % available soil P, PI can be fixed to more occluded form
-ke = 1e-8;        % NOT SURE
-ERI = ke * PI;      % losses of PI due to erosion, and soil particles that 
+%ke = 0;        % NOT SURE
+%ERI = ke * PI;      % losses of PI due to erosion, and soil particles that 
                     % are transported during runoff
+ERI = 0.0;
 
 kl = 0.035;         % unit: day^-1, leaching loss constant
 % a function of deep leaching losses
 LE = Ls * kl * PI / (n * Zr * s);
 % inorganic P
 % ENZ_I and ENZ_O have been taken care in UP
-dPIdt = MIN + ATM + WE - kimm * PI * CM - FIX - UP - ERI - LE;
+dPIdt = MIN + ATM + WE + ENZ_I +ENZ_O - kimm * PI * CM - FIX - UP - ERI - LE;
 
-ER_O = ke * POCC;
+%ERO = ke * POCC;
+ERO = 0.0;
 % changes in the occluded P pool
-dPOCCdt = FIX - WE - ENZ_I - ER_O;
+dPOCCdt = FIX - WE - ENZ_I - ERO;
 
 %% construct ODE
 
