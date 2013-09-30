@@ -3,6 +3,35 @@ function dCPdt = myode(t, CP)
 global DF litter
 Ist = interp1(DF.t, DF.v, t);
 LF  = interp1(litter.t, litter.v, t);
+date = datestr(t+datenum('01-Jan-1998'));
+month = date(4:6);
+switch month
+    case 'Jan'
+        LF = 0.002;
+    case 'Feb'
+        LF = 0.002;
+    case 'Mar'
+        LF = 0.00227;
+    case 'Apr'
+        LF = 0.00227;
+    case 'May'
+        LF = 0.00255;
+    case 'Jun'
+        LF = 0.00271;
+    case 'Jul'
+        LF = 0.00282;
+    case 'Aug'
+        LF = 0.006376;
+    case 'Sep'
+        LF = 0.00473;
+    case 'Oct'
+        LF = 0.00282;
+    case 'Nov'
+        LF = 0.002;
+    case 'Dec'
+        LF = 0.002;
+    otherwise
+end
 
 %% 
 CL   = CP(1);
@@ -261,7 +290,8 @@ kl = 0.035;         % unit: day^-1, leaching loss constant
 % a function of deep leaching losses
 LE = Ls * kl * PI / (n * Zr * s);
 % inorganic P
-dPIdt = MIN + ATM + WE + ENZ_I + ENZ_O - kimm * PI * CM - FIX - UP - ERI - LE;
+% ENZ_I and ENZ_O have been taken care in UP
+dPIdt = MIN + ATM + WE - kimm * PI * CM - FIX - UP - ERI - LE;
 
 ER_O = ke * POCC;
 % changes in the occluded P pool
