@@ -1,7 +1,7 @@
 function [dCPdt, MIN, UP, DECL, LE] = myode(t, CP)
 
 %LF  = interp1(litter.t, litter.v, t);
-date = datestr(t + datenum('01-Jul-1998'));
+date = datestr(t + datenum('01-Jan-1998'));
 month = date(4:6);
 switch month
     case 'Jan'
@@ -31,7 +31,6 @@ switch month
     otherwise
 end
 
-%% 
 CL   = CP(1);
 CH   = CP(2);
 CM   = CP(3);
@@ -44,12 +43,12 @@ POCC = CP(9);
 s    = CP(10);
 
 C_over_P_L = CL / PL;
-%C_over_P_H = CH / PH;
-C_over_P_H = 50/1000;
+C_over_P_H = CH / PH;
+%C_over_P_H = 50/1000;
 C_over_P_M = CM / PM;
 
 
-%% soil moisture part
+% soil moisture part
 
 sstar = 0.27;       % dimensionless, soil moisture when plants close stomata
 sW    = 0.17;       % dimensionless, soil moisture at wilting point
@@ -92,28 +91,25 @@ Ks  = 452;            % unit: cm day^-1, saturated hydraulic conductivity
 % Sandy Load    4.90    12.8    13.8
 % Loam          5.39    13.8    14.8
 % Clay          11.4    25.8    26.8
-b = 4;        % used by the paper author
+b = 1.6;        % used by the paper author
 beta = 2 * b + 4;
 % vertical percolation with unit gradient
 % Ks is the saturated hydraulic conductivity
 if s > sfc
-    % Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
+    %Ls = Ks / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    % sfc < s <=1
     c = 2 * b + 3;
-    %Ls = Ks*s^c / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1);    
-    Ls = Ks*s^c;
+    Ls = Ks*s^c / (exp(beta*(1-sfc))-1) * (exp(beta*(s-sfc))-1); 
+    %Ls = Ks*s^c;
 else
     Ls = 0;
 end
 % soil moisture dynamics, Ist is the rate of infiltration from rainfall
 Ist = rainfall(t);
 Ist = min([Ist, n*Zr*(1-s)]);
-try
-    dsdt = (Ist - Es - Ts - Ls) / (n * Zr);
-catch
-    4;
-end
+dsdt = (Ist - Es - Ts - Ls) / (n * Zr);
 
-%% C part
+
+% C part
 
 if s <= sfc         % sfc is soil moisture at field capacity
     fd = s / sfc;   % nondimensional factor describes the effects of soil
@@ -174,7 +170,7 @@ dCMdt = (1-rh-rr)*DECL + (1-rr)*DECH - MD;
 dCLdt = LF + MD - DECL;
 
 
-%% P part
+% P part
 
 kp    = 10;             % Dimensionless, role of AM in movement of P ions
                         % role of mycorrhizal hyphae in the movement of P
@@ -299,14 +295,14 @@ kl = 0.035;         % unit: day^-1, leaching loss constant
 LE = Ls * kl * PI / (n * Zr * s);
 % inorganic P
 % ENZ_I and ENZ_O have been taken care in UP
-dPIdt = MIN + ATM + WE - (1 - phi) * kimm * PI * CM - FIX - UP - ERI - LE;
+dPIdt = MIN + ATM + WE + ENZ_I + ENZ_O  - (1 - phi) * kimm * PI * CM - FIX - UP - ERI - LE - (0.028+0.001)/365;
 
 %ERO = ke * POCC;
 ERO = 0.0;
 % changes in the occluded P pool
 dPOCCdt = FIX - WE - ENZ_I - ERO;
 
-%% construct ODE
+% construct ODE
 
 dCPdt = zeros(size(CP));
 dCPdt(1) = dCLdt;
